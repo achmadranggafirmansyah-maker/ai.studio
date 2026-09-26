@@ -1,0 +1,7 @@
+name = "ai-studio"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+assets = { directory = "./public" }
+
+[observability]
+enabled = true
