@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Studio</title>
+<style>
+  :root{--bg:#0b0d12;--panel:#141821;--border:#232a38;--text:#e6e9ef;--muted:#8b93a7;--accent:#6366f1;--accent2:#8b5cf6;--ok:#22c55e;--err:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+  header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:rgba(11,13,18,.85);backdrop-filter:blur(12px);z-index:10}
+  header h1{font-size:16px;font-weight:600}
+  header .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  main{max-width:900px;margin:0 auto;padding:20px}
+  .tabs{display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px}
+  .tabs button{flex:1;padding:10px 4px;border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:500;border-radius:8px;cursor:pointer;transition:.2s}
+  .tabs button.active{background:var(--accent);color:#fff}
+  .panel{display:none;animation:fade .3s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+  textarea,input,select{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:.2s;resize:vertical}
+  textarea:focus,input:focus,select:focus{border-color:var(--accent)}
+  textarea{min-height:90px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  @media(max-width:600px){.row{grid-template-columns:1fr}}
+  .btn{width:100%;margin-top:16px;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:.2s}
+  .btn:hover{filter:brightness(1.1)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .preview{margin-top:18px;border:1px dashed var(--border);border-radius:12px;min-height:220px;display:flex;align-items:center;justify-content:center;background:var(--panel);overflow:hidden}
+  .preview img,.preview video{max-width:100%;max-height:520px;display:block;border-radius:12px}
+  .preview .placeholder{color:var(--muted);font-size:13px;text-align:center;padding:20px}
+  .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .status{font-size:12px;color:var(--muted);margin-top:8px;text-align:center;min-height:16px}
+  .status.err{color:var(--err)}.status.ok{color:var(--ok)}
+  .upload{border:1px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:.2s;background:var(--panel);margin-bottom:10px}
+  .upload:hover{border-color:var(--accent)}
+  .upload input{display:none}
+  .upload p{color:var(--muted);font-size:12px}
+  .upload img{max-height:180px;border-radius:8px;margin-top:8px}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
+  .colab-setup{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+  .colab-setup h3{font-size:14px;margin-bottom:8px;color:var(--accent2)}
+  .colab-setup p{font-size:12px;color:var(--muted);line-height:1.5}
+  .colab-setup code{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px}
+</style>
+</head>
+<body>
+<header><div class="dot"></div><h1>AI Studio</h1></header>
+<main>
+  <div class="tabs">
+    <button class="active" data-tab="t2i">🖼 Text→Image</button>
+    <button data-tab="i2v">🎬 Image→Video</button>
+    <button data-tab="motion">🕺 Motion Control</button>
+  </div>
+
+  <!-- TEXT TO IMAGE -->
+  <section class="panel active" id="t2i">
+    <label>Prompt</label>
+    <textarea id="imgPrompt" placeholder="cyberpunk city at night, neon lights, ultra detailed"></textarea>
+    <div class="row">
+      <div><label>Ukuran</label>
+        <select id="imgSize">
+          <option value="1024x1024">1:1</option>
+          <option value="1280x720" selected>16:9</option>
+          <option value="720x1280">9:16</option>
+        </select>
+      </div>
+      <div><label>Model</label>
+        <select id="imgModel">
+          <option value="flux" selected>Flux</option>
+          <option value="turbo">Turbo</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" id="genImgBtn">✨ Generate Image</button>
+    <div class="status" id="imgStatus"></div>
+    <div class="preview" id="imgPreview"><p class="placeholder">Hasil muncul di sini</p></div>
+  </section>
+
+  <!-- IMAGE TO VIDEO -->
+  <section class="panel" id="i2v">
+    <label>Upload Gambar</label>
+    <div class="upload" id="uploadBox1">
+      <input type="file" id="imgFile1" accept="image/*" />
+      <p id="uploadText1">📁 Tap untuk pilih gambar</p>
+      <img id="uploadPreview1" style="display:none" />
+    </div>
+    <div style="margin-top:14px">
+      <label>Prompt Gerakan (opsional)</label>
+      <textarea id="vidPrompt" style="min-height:70px" placeholder="slow zoom in, cinematic"></textarea>
+    </div>
+    <div class="row">
+      <div><label>Motion</label>
+        <select id="motion"><option value="127">🐢 Halus</option><option value="180" selected>🚶 Medium</option><option value="255">🏃 Dinamis</option></select>
+      </div>
+      <div><label>Durasi</label>
+        <select id="duration"><option value="14">~2 detik</option><option value="25" selected>~4 detik</option></select>
+      </div>
+    </div>
+    <button class="btn" id="genVidBtn">🎬 Generate Video</button>
+    <div class="status" id="vidStatus"></div>
+    <div class="preview" id="vidPreview"><p class="placeholder">Hasil muncul di sini</p></div>
+  </section>
+
+  <!-- MOTION CONTROL -->
+  <section class="panel" id="motion">
+    <div class="colab-setup">
+      <h3>⚙️ Cara Pakai Motion Control</h3>
+      <p>
+        1. Buka <code>colab.research.google.com</code> di tab lain<br>
+        2. Upload file <code>colab.ipynb</code> (ada di folder project)<br>
+        3. Set GPU: Runtime → Change type → T4 GPU<br>
+        4. Run semua cell, tunggu sampai muncul URL <code>trycloudflare.com</code><br>
+        5. Copy URL itu, paste di kolom di bawah<br>
+        6. Baru bisa generate motion control
+      </p>
+    </div>
+    <label>URL Colab Tunnel (dari langkah 4)</label>
+    <input type="text" id="colabUrl" placeholder="https://xxxx.trycloudflare.com" />
+    <button class="btn" id="checkColabBtn" style="margin-top:8px;padding:10px;font-size:13px">🔍 Cek Koneksi Colab</button>
+    <div class="status" id="colabStatus"></div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+
+    <label>Gambar Karakter</label>
+    <div class="upload" id="uploadBox2">
+      <input type="file" id="imgFile2" accept="image/*" />
+      <p id="uploadText2">📁 Tap untuk pilih gambar karakter</p>
+      <img id="uploadPreview2" style="display:none" />
+    </div>
+
+    <label>Video Referensi Gerakan</label>
+    <div class="upload" id="uploadBox3">
+      <input type="file" id="vidFile" accept="video/*" />
+      <p id="uploadText3">📁 Tap untuk pilih video (mp4/mov)</p>
+      <video id="uploadPreview3" style="display:none;max-height:180px;border-radius:8px;margin-top:8px" controls muted></video>
+    </div>
+    <p class="hint">Video ini jadi sumber gerakan. Karakter lo bakal ngikutin gerakannya.</p>
+
+    <button class="btn" id="genMotionBtn">🕺 Generate Motion Control</button>
+    <div class="status" id="motionStatus"></div>
+    <div class="preview" id="motionPreview"><p class="placeholder">Hasil video muncul di sini</p></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const setStatus = (el,msg,type='') => { el.textContent=msg; el.className='status '+type; };
+const showLoading = (el,text='Memproses...') => {
+  el.innerHTML = `<div style="text-align:center"><div class="spinner" style="margin:0 auto 10px"></div><p class="placeholder">${text}</p></div>`;
+};
+
+// Tabs
+document.querySelectorAll('.tabs button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('#'+btn.dataset.tab).classList.add('active');
+  };
+});
+
+// ===== TEXT TO IMAGE (Pollinations - gratis) =====
+$('#genImgBtn').onclick = () => {
+  const prompt = $('#imgPrompt').value.trim();
+  if (!prompt) return setStatus($('#imgStatus'),'Prompt kosong!','err');
+  const [w,h] = $('#imgSize').value.split('x');
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&seed=${Math.floor(Math.random()*1e9)}&model=${$('#imgModel').value}&nologo=true`;
+  $('#genImgBtn').disabled = true;
+  setStatus($('#imgStatus'),'Generating...');
+  showLoading($('#imgPreview'),'Bikin gambar... (±10–30 detik)');
+  const img = new Image();
+  img.onload = () => { $('#imgPreview').innerHTML=''; $('#imgPreview').appendChild(img); setStatus($('#imgStatus'),'✓ Selesai!','ok'); $('#genImgBtn').disabled=false; };
+  img.onerror = () => { setStatus($('#imgStatus'),'Gagal. Coba lagi.','err'); $('#imgPreview').innerHTML='<p class="placeholder">Gagal</p>'; $('#genImgBtn').disabled=false; };
+  img.src = url;
+};
+
+// ===== UPLOAD HELPER =====
+function setupImageUpload(boxId, fileId, textId, previewId, callback) {
+  $('#'+boxId).onclick = () => $('#'+fileId).click();
+  $('#'+fileId).onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => { $('#'+previewId).src=ev.target.result; $('#'+previewId).style.display='block'; $('#'+textId).style.display='none'; callback(ev.target.result); };
+    r.readAsDataURL(f);
+  };
+}
+
+let imgData1 = null, imgData2 = null, vidData = null;
+setupImageUpload('uploadBox1','imgFile1','uploadText1','uploadPreview1', d => imgData1 = d);
+setupImageUpload('uploadBox2','imgFile2','uploadText2','uploadPreview2', d => imgData2 = d);
+setupImageUpload('uploadBox3','vidFile','uploadText3','uploadPreview3', d => vidData = d);
+
+// ===== IMAGE TO VIDEO (via Cloudflare Worker → HF) =====
+$('#genVidBtn').onclick = async () => {
+  if (!imgData1) return setStatus($('#vidStatus'),'Upload gambar dulu!','err');
+  $('#genVidBtn').disabled = true;
+  setStatus($('#vidStatus'),'Mengirim ke server...');
+  showLoading($('#vidPreview'),'Bikin video... (±1–3 menit)');
+  try {
+    const res = await fetch('/api/image-to-video', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ image: imgData1, prompt: $('#vidPrompt').value.trim(), motionBucketId: parseInt($('#motion').value), videoLength: $('#duration').value })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error||'Gagal');
+    $('#vidPreview').innerHTML='';
+    const vid = document.createElement('video');
+    vid.src = data.videoUrl; vid.controls=true; vid.autoplay=true; vid.loop=true; vid.playsInline=true;
+    $('#vidPreview').appendChild(vid);
+    setStatus($('#vidStatus'),'✓ Video selesai!','ok');
+  } catch(err) { setStatus($('#vidStatus'),'❌ '+err.message,'err'); $('#vidPreview').innerHTML='<p class="placeholder">Gagal</p>'; }
+  finally { $('#genVidBtn').disabled=false; }
+};
+
+// ===== MOTION CONTROL (via Colab Tunnel) =====
+$('#checkColabBtn').onclick = async () => {
+  const url = $('#colabUrl').value.trim().replace(/\/$/,'');
+  if (!url) return setStatus($('#colabStatus'),'Isi URL Colab dulu!','err');
+  setStatus($('#colabStatus'),'Mengecek...');
+  try {
+    const res = await fetch(url + '/api/health', { method:'GET', mode:'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    setStatus($('#colabStatus'),'✅ Colab terhubung!','ok');
+  } catch(err) {
+    setStatus($('#colabStatus'),'❌ Gagal: ' + err.message,'err');
+  }
+};
+
+$('#genMotionBtn').onclick = async () => {
+  const url = $('#colabUrl').value.trim().replace(/\/$/,'');
+  if (!url) return setStatus($('#motionStatus'),'Isi URL Colab dulu!','err');
+  if (!imgData2) return setStatus($('#motionStatus'),'Upload gambar karakter!','err');
+  if (!vidData) return setStatus($('#motionStatus'),'Upload video referensi!','err');
+
+  $('#genMotionBtn').disabled = true;
+  setStatus($('#motionStatus'),'Mengirim ke Colab...');
+  showLoading($('#motionPreview'),'Menganimasikan karakter... (±3–8 menit)');
+
+  try {
+    const res = await fetch(url + '/api/animate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ image: imgData2, video: vidData })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error||'Gagal');
+
+    $('#motionPreview').innerHTML='';
+    const vid = document.createElement('video');
+    vid.src = data.videoUrl.startsWith('data:') ? data.videoUrl : url + data.videoUrl;
+    vid.controls=true; vid.autoplay=true; vid.loop=true; vid.playsInline=true;
+    $('#motionPreview').appendChild(vid);
+    setStatus($('#motionStatus'),'✓ Motion control selesai!','ok');
+  } catch(err) {
+    setStatus($('#motionStatus'),'❌ '+err.message,'err');
+    $('#motionPreview').innerHTML='<p class="placeholder">Gagal. Pastikan Colab masih jalan.</p>';
+  } finally { $('#genMotionBtn').disabled=false; }
+};
+</script>
+</body>
+</html>
